@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Estudos por Especialidade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            overflow-x: hidden;
+        }
+        .module-list-item {
+            background-color: #2d3748; /* Slightly lighter dark shade */
+            border-radius: 0.5rem;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+            margin-bottom: 0.75rem;
+            border: 1px solid #4a5568; /* Subtle border */
+        }
+        .module-list-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .module-list-item.active {
+            border-left: 4px solid #63b3ed; /* Blue accent for active */
+            background-color: #4a5568; /* Darker shade for active */
+        }
+        .details-section-container {
+            background-color: #2d3748;
+            border-radius: 0.5rem;
+            border: 1px solid #4a5568;
+            height: calc(100vh - 84px); /* Full height minus header and padding */
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Scroll for content list */
+            scrollbar-width: thin;
+            scrollbar-color: #718096 #2d3748;
+        }
+        .details-section-container::-webkit-scrollbar { width: 6px; }
+        .details-section-container::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; }
+        .details-section-container::-webkit-scrollbar-thumb { background: #718096; border-radius: 10px; }
+        .details-section-container::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+
+        .content-viewer-wrapper { /* Parent for player and overlay topics menu */
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            background-color: #000;
+            border-radius: 0.375rem;
+            overflow: hidden; /* Important for absolute children if they are larger */
+            flex-shrink: 0;
+        }
+        #player-div, #module-content-viewer { /* Player and GDrive iframe */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        #details-content-list-container { flex-grow: 1; overflow-y: auto; min-height: 120px; }
+        .content-item { border-bottom: 1px solid #4a5568; transition: background-color 0.15s ease-in-out; }
+        .content-item:hover { background-color: #4a5568; }
+        .content-item:last-child { border-bottom: none; }
+        .content-item.active-content { background-color: #3b82f6; color: white; }
+        .content-item.active-content .content-title,
+        .content-item.active-content .content-status,
+        .content-item.active-content svg { color: white; stroke: white; }
+
+        .module-icon-box { width: 60px; height: 60px; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.875rem; color: white; font-weight: 600; flex-shrink: 0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #2d3748; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #718096; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+        .specialty-header { font-size: 0.875rem; font-weight: 700; color: #cbd5e1; margin-bottom: 0.75rem; padding-top: 0.5rem; text-align: center; text-transform: uppercase; border-bottom: 1px solid #4a5568; padding-bottom: 0.25rem; }
+        .label-icon-container { min-height: 2.25rem; display: flex; align-items: center; justify-content: center; }
+        .item-count { font-size: 0.875rem; font-weight: 600; color: #e2e8f0; display: block; margin-top: 0.125rem; text-align: center; }
+        .module-title { text-align: center; }
+        
+        /* Styles for the topics menu - overlay */
+        #topics-menu {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0; /* Full height of parent */
+            width: 300px; /* Example fixed width, adjust as needed */
+            background-color: rgba(45, 55, 72, 0.95); /* #2d3748 with opacity */
+            z-index: 20; /* Below toggle button, above player */
+            padding: 1rem; /* Tailwind p-4 */
+            border-left: 1px solid #4a5568; /* Optional separator */
+            overflow-y: auto;
+        }
+        .topics-item { 
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.3rem; 
+            border-bottom: 1px solid #4a5568; 
+            color: #cbd5e1; 
+        }
+        .topics-item:last-child { border-bottom: none; }
+        .topics-item.clickable { cursor: pointer; }
+        .topics-item.clickable:hover { background-color: #4a5568; }
+        .topics-item.clickable:hover .topic-title,
+        .topics-item.clickable:hover .topic-time { color: #90cdf4; } 
+        .topics-item.clickable:hover .play-icon { fill: #90cdf4; stroke: #90cdf4; }
+
+
+        .topic-title-container {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            margin-right: 0.5rem; 
+        }
+        .play-icon {
+            width: 1rem; 
+            height: 1rem; 
+            margin-right: 0.5rem; 
+            fill: #9ca3af; /* Fill for solid icon */
+            stroke: #9ca3af; /* Keep stroke for consistency or remove if fill is enough */
+        }
+        .topic-title {
+            font-size: 0.875rem; 
+            font-weight: 500; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .topic-time { 
+            font-size: 0.75rem; 
+            color: #9ca3af; 
+            flex-shrink: 0;
+        }
+
+        /* Gradient classes for module icons */
+        .gradient-gray { background-image: linear-gradient(to bottom right, #6b7280, #4b5563); } 
+        .gradient-red-pink { background-image: linear-gradient(to bottom right, #ef4444, #ec4899); } 
+        .gradient-sky-blue { background-image: linear-gradient(to bottom right, #38bdf8, #0ea5e9); } 
+        .gradient-amber-orange { background-image: linear-gradient(to bottom right, #f59e0b, #f97316); } 
+        .gradient-lime-emerald { background-image: linear-gradient(to bottom right, #84cc16, #10b981); } 
+        .gradient-fuchsia-pink-alt { background-image: linear-gradient(to bottom right, #c026d3, #db2777); } 
+        .gradient-yellow-orange-dark { background-image: linear-gradient(to bottom right, #eab308, #d97706); } 
+        .gradient-violet-grape { background-image: linear-gradient(to bottom right, #8b5cf6, #7c3aed); } 
+        .gradient-cyan-sky { background-image: linear-gradient(to bottom right, #06b6d4, #0ea5e9); } 
+        .gradient-indigo-deepPurple { background-image: linear-gradient(to bottom right, #6366f1, #8b5cf6); } 
+        .gradient-lightGreen-green { background-image: linear-gradient(to bottom right, #86efac, #22c55e); } 
+        .gradient-blueGray-slate { background-image: linear-gradient(to bottom right, #64748b, #475569); } 
+        .gradient-cyan-lightBlue { background-image: linear-gradient(to bottom right, #22d3ee, #38bdf8); } 
+        .gradient-indigo-violet { background-image: linear-gradient(to bottom right, #6366f1, #7c3aed); } 
+        .gradient-magenta-purple { background-image: linear-gradient(to bottom right, #d946ef, #a855f7); } 
+        .gradient-green-teal { background-image: linear-gradient(to bottom right, #10b981, #14b8a6); }  
+        .gradient-pink-purple { background-image: linear-gradient(to bottom right, #ec4899, #a855f7); } 
+        .gradient-rose-fuchsia { background-image: linear-gradient(to bottom right, #f43f5e, #d946ef); } 
+        .gradient-yellow-amber { background-image: linear-gradient(to bottom right, #f59e0b, #facc15); } 
+        .gradient-teal-cyan { background-image: linear-gradient(to bottom right, #14b8a6, #06b6d4); } 
+
+        /* Responsive adjustments for overall layout */
+        @media (max-width: 1023px) { 
+            .main-content-flex { flex-direction: column; height: auto; }
+            #modules-list-column { width: 100%; max-height: 45vh; margin-bottom: 1rem; height: auto; }
+            #details-column { width: 100%; height: auto; }
+            .details-section-container { height: auto; max-height: none; }
+            .content-viewer-wrapper { min-height: 250px; } /* Ensure player has some height */
+            #details-content-list-container{ max-height: 200px; height: auto; }
+            #topics-menu {
+                width: 80%; 
+                max-width: 300px; /* Ensure overlay menu is not too wide on mobile */
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <header class="bg-gray-800 shadow-md py-3 px-4 sm:px-6 lg:px-8 sticky top-0 z-20">
+        <div class="container mx-auto flex justify-between items-center max-w-full px-4">
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-100">Plataforma de Estudos</h1>
+            <div class="relative">
+                <input type="search" id="search-input" placeholder="Pesquisar módulos ou especialidades..." class="pl-10 pr-4 py-2 rounded-lg border bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:px-8 max-w-full" style="height: calc(100vh - 60px);">
+        <div class="flex flex-col lg:flex-row gap-6 main-content-flex h-full">
+            <div id="modules-list-column" class="w-full lg:w-1/3 xl:w-1/4 h-full overflow-hidden">
+                <div id="modules-list-container" class="custom-scrollbar pr-2 h-full overflow-y-auto">
+                    </div>
+            </div>
+
+            <div id="details-column" class="w-full lg:w-2/3 xl:w-3/4 h-full">
+                <div id="details-panel" class="details-section-container p-4 sm:p-6">
+                    
+                    <div class="content-viewer-wrapper w-full mb-4">
+                        <div id="player-div"></div>
+                        <iframe 
+                            id="module-content-viewer" 
+                            class="hidden"
+                            src="about:blank" 
+                            title="Visualizador de Conteúdo do Módulo"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allowfullscreen>
+                        </iframe>
+                        <button id="toggle-topics-button" title="Opções" class="absolute top-2 right-2 z-30 bg-gray-700 hover:bg-gray-600 text-white text-sm py-1.5 px-3 rounded-md flex items-center focus:outline-none hidden">
+                            <span class="mr-2">Opções</span>
+                            <svg id="topics-icon-open" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            <svg id="topics-icon-close" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <div id="topics-menu" class="custom-scrollbar hidden"> 
+                             <h4 class="text-base font-semibold text-gray-100 mb-3 sticky top-0 py-2" style="background-color: rgba(45, 55, 72, 0.95);">Assuntos desse vídeo</h4>
+                             <ul id="topics-list" class="space-y-1">
+                                 </ul>
+                             <p id="no-topics-message" class="text-gray-400 text-xs hidden p-2">Nenhum tópico disponível para esta aula.</p>
+                        </div>
+                    </div>
+                                    
+                    <h3 id="materials-header" class="text-sm font-semibold text-gray-300 mb-2 flex-shrink-0 text-center">MATERIAIS DO MÓDULO:</h3>
+                    <div id="details-content-list-container" class="custom-scrollbar">
+                        <div id="details-content-list">
+                             <p class="text-gray-400 initial-details-message">Selecione um módulo para ver os materiais.</p>
+                             </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <template id="module-list-item-template">
+        <div class="module-list-item p-3 flex items-center gap-3">
+            <div class="module-icon-box flex-shrink-0">
+                </div>
+            <div class="flex-grow overflow-hidden flex flex-col items-center"> 
+                <h3 class="module-title relative text-sm font-semibold text-gray-100" style="white-space: normal; overflow-wrap: break-word; line-height: 1.4; left: -36px;">Título do Módulo</h3>
+                <div class="mt-2 grid grid-cols-3 gap-x-2 sm:gap-x-3 w-full"> 
+                    <div class="progress-item text-center">
+                        <div class="label-icon-container text-xs text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 text-blue-400"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            Aulas
+                        </div>
+                        <span class="item-count aulas-count">0</span>
+                    </div>
+                    <div class="progress-item text-center">
+                        <div class="label-icon-container text-xs text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 text-green-400"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                            Apostilas
+                        </div>
+                        <span class="item-count apostilas-count">0</span>
+                    </div>
+                    <div class="progress-item text-center"> 
+                        <div class="label-icon-container text-xs text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 text-yellow-400"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>
+                            Aulas Bônus
+                        </div>
+                        <span class="item-count aulasBonus-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="content-item-template">
+        <div class="content-item py-2.5 px-2 hover:bg-gray-700 rounded-md cursor-pointer">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <span class="content-title text-sm text-gray-300 font-medium truncate">Título do Conteúdo</span>
+                </div>
+                <span class="content-status text-xs text-gray-400"></span>
+            </div>
+        </div>
+    </template>
+    
+    <script src="https://www.youtube.com/iframe_api"></script> <script>
+        // Constants for DOM elements
+        const modulesListContainer = document.getElementById('modules-list-container');
+        const moduleListItemTemplate = document.getElementById('module-list-item-template');
+        const gDriveViewer = document.getElementById('module-content-viewer'); 
+        const playerDiv = document.getElementById('player-div'); 
+        const detailsContentList = document.getElementById('details-content-list');
+        const contentItemTemplate = document.getElementById('content-item-template');
+        const searchInput = document.getElementById('search-input');
+        const materialsHeader = document.getElementById('materials-header'); 
+        const toggleTopicsButton = document.getElementById('toggle-topics-button');
+        const topicsMenuDiv = document.getElementById('topics-menu');
+        const topicsListUl = document.getElementById('topics-list'); 
+        const noTopicsMessage = document.getElementById('no-topics-message');
+        const topicsIconOpen = document.getElementById('topics-icon-open');
+        const topicsIconClose = document.getElementById('topics-icon-close');
+
+        // Global state variables
+        let currentModuleId = 0;
+        let ytPlayer; // This will hold the current YouTube player instance
+        let youtubeApiReady = false;
+        let activeModuleCard = null; 
+        let activeContentItem = null; 
+
+        // Icons for content types in the details list
+        const contentIcons = { 
+            aulas: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 mr-2 flex-shrink-0"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>',
+            apostilas: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-400 mr-2 flex-shrink-0"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>',
+            aulasbonus: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-400 mr-2 flex-shrink-0"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>', 
+        };
+        const subItemOrder = ['aulas', 'apostilas', 'aulasBonus']; 
+
+        // Gradient classes for module icons
+        const gradientClasses = [
+            'gradient-red-pink', 'gradient-sky-blue', 'gradient-amber-orange', 'gradient-lime-emerald',
+            'gradient-fuchsia-pink-alt', 'gradient-yellow-orange-dark', 'gradient-violet-grape', 'gradient-cyan-sky',
+            'gradient-indigo-deepPurple', 'gradient-lightGreen-green', 'gradient-blueGray-slate', 'gradient-cyan-lightBlue',
+            'gradient-indigo-violet', 'gradient-magenta-purple', 'gradient-green-teal', 'gradient-pink-purple',
+            'gradient-rose-fuchsia', 'gradient-yellow-amber', 'gradient-teal-cyan', 'gradient-gray'
+        ];
+        
+        // Sample topics to be used as placeholders - kept for aulas/aulasBonus that don't have specific topics defined
+        const genericSampleTopics = [];
+
+        // --- YouTube API and Player Functions ---
+        function onYouTubeIframeAPIReady() {
+            youtubeApiReady = true;
+            console.log("YouTube IFrame API Ready");
+        }
+
+        function destroyYouTubePlayer() {
+            if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+                console.log("Destroying previous YouTube player instance");
+                ytPlayer.destroy();
+            }
+            ytPlayer = null; // Reset the global player variable
+            if (playerDiv) playerDiv.innerHTML = ''; 
+        }
+        
+        function loadYouTubeVideo(videoId, topicsData) {
+            destroyYouTubePlayer(); 
+            gDriveViewer.classList.add('hidden'); 
+            gDriveViewer.src = 'about:blank';    
+            playerDiv.classList.remove('hidden'); 
+            playerDiv.innerHTML = ''; 
+
+            // Initial population for button visibility, topics won't be clickable yet.
+            // Pass null for playerInstance as it's not ready.
+            if (topicsData && topicsData.length > 0) {
+                populateTopicsMenu(topicsData, true, null); 
+            } else {
+                clearTopicsMenu('Nenhum tópico definido para esta aula.'); 
+            }
+
+            if (videoId && (videoId.startsWith("ID_YOUTUBE_") || videoId.startsWith("LINK_GOOGLE_DRIVE_") )) { 
+                playerDiv.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-400 p-4">Substitua o placeholder '${videoId}' pela URL real do conteúdo.</div>`;
+                return;
+            }
+            
+            if (!youtubeApiReady) {
+                console.warn("YouTube API not ready. Player creation deferred. Waiting...");
+                playerDiv.innerHTML = '<p class="text-gray-400 p-4">Carregando API do YouTube...</p>';
+                const checkReadyAndLoad = () => {
+                    if (youtubeApiReady) {
+                        console.log("YouTube API is now ready. Proceeding to load video.");
+                        loadYouTubeVideo(videoId, topicsData); // Re-call the function now that API is ready
+                    } else {
+                        console.log("Still waiting for YouTube API...");
+                        setTimeout(checkReadyAndLoad, 500); 
+                    }
+                };
+                setTimeout(checkReadyAndLoad, 500);
+                return;
+            }
+            
+            console.log("Attempting to create YouTube player for videoId:", videoId);
+            // Assign to global ytPlayer. The specific instance is passed to populateTopicsMenu via onReady.
+            ytPlayer = new YT.Player('player-div', { 
+                height: '100%', 
+                width: '100%', 
+                videoId: videoId,
+                playerVars: { 
+                    'playsinline': 1, 
+                    'autoplay': 1, 
+                    'rel': 0,
+                    'controls': 1,        
+                    'modestbranding': 1,  
+                    'iv_load_policy': 3,  
+                    'fs': 1               
+                }, 
+                events: {
+                    'onReady': (event) => { 
+                        console.log("YouTube Player Ready. Video ID:", videoId, "Player instance:", event.target);
+                        // Re-populate topics with the now ready player instance to make them clickable
+                        if (topicsData && topicsData.length > 0) {
+                            populateTopicsMenu(topicsData, true, event.target); // Pass the specific player instance
+                        }
+                    },
+                    'onError': (event) => {
+                        console.error("YouTube Player Error:", event.data, "Video ID:", videoId);
+                        playerDiv.innerHTML = `<p class="text-red-400 p-4">Erro ao carregar o vídeo do YouTube. Verifique o ID do vídeo ('${videoId}') ou a conexão.</p>`;
+                    }
+                }
+            });
+        }
+
+        // --- Utility Functions ---
+        const gDriveTransformLink = (link) => { 
+            if (link && typeof link === 'string' && link.includes('drive.google.com') && !link.startsWith("LINK_GOOGLE_DRIVE_")) { 
+                return link.replace('/view?usp=drive_link', '/preview?usp=drive_link')
+                           .replace('/view?usp=sharing', '/preview?usp=sharing');
+            }
+            return link; 
+        };
+
+        function parseYouTubeVideoId(url) {
+            if (!url) return null;
+            const patterns = [
+                /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+                /googleusercontent\.com\/youtube\.com\/(\d+)/, 
+                /^ID_YOUTUBE_AULA(?:_BONUS)?_MODULO_([a-zA-Z0-9_]+)_(\d+)$/ 
+            ];
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match && match[1]) {
+                    if (pattern.source.includes('googleusercontent')) { 
+                        return match[1]; 
+                    } else if (pattern.source.startsWith("^ID_YOUTUBE_AULA")){ 
+                        return url; 
+                    } else if (match[1].length === 11) { 
+                        return match[1]; 
+                    }
+                }
+            }
+            return null;
+        }
+        
+        function parseTimeToSeconds(timeStr) { 
+            if (!timeStr || typeof timeStr !== 'string') return 0;
+            const parts = timeStr.split(':').map(Number);
+            let seconds = 0;
+            if (parts.length === 3) { 
+                seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) { 
+                seconds = parts[0] * 60 + parts[1];
+            } else if (parts.length === 1) { 
+                seconds = parts[0];
+            }
+            return seconds;
+        }
+
+        // --- Module and Content Creation ---
+        const createModule = (specialty, shortcode, title, subtitle, contentCounts, iconType, contentLinks) => {
+            currentModuleId++; 
+            
+            const aulasPlaceholders = Array(contentCounts.aulas).fill(null).map((_, i) => {
+                const linkData = contentLinks.aulas && contentLinks.aulas[i];
+                let url, type, topics, displayTitle;
+
+                if (linkData && typeof linkData === 'object') { 
+                    url = linkData.url || `ID_YOUTUBE_AULA_MODULO_${title.replace(/\s+/g, '_')}_${i + 1}`;
+                    topics = linkData.topics || genericSampleTopics; 
+                    displayTitle = linkData.customTitle || `Aula ${i + 1}`;
+                    
+                    const ytId = parseYouTubeVideoId(url);
+                    if (ytId && (ytId.length === 11 || ytId.startsWith("ID_YOUTUBE_") || !isNaN(parseInt(ytId)))) {
+                        url = ytId; 
+                        type = 'youtube';
+                    } else { 
+                        url = gDriveTransformLink(url);
+                        type = 'gdrive'; 
+                    }
+                } else { 
+                    displayTitle = `Aula ${i + 1}`;
+                    url = (typeof linkData === 'string' && linkData) ? linkData : `ID_YOUTUBE_AULA_MODULO_${title.replace(/\s+/g, '_')}_${i + 1}`;
+                    const ytId = parseYouTubeVideoId(url);
+                     if (ytId && (ytId.length === 11 || ytId.startsWith("ID_YOUTUBE_") || !isNaN(parseInt(ytId)))) {
+                        type = 'youtube';
+                        url = ytId;
+                    } else {
+                        type = 'gdrive';
+                        url = gDriveTransformLink(url);
+                    }
+                    topics = genericSampleTopics; 
+                }
+                return { title: displayTitle, url: url, type: type, topics: topics };
+            });
+
+            const aulasBonusPlaceholders = Array(contentCounts.aulasBonus).fill(null).map((_, i) => {
+                const linkData = contentLinks.aulasBonus && contentLinks.aulasBonus[i];
+                let url, type, topics, displayTitle;
+
+                if (linkData && typeof linkData === 'object') {
+                    url = linkData.url || `LINK_GOOGLE_DRIVE_AULA_BONUS_MODULO_${title.replace(/\s+/g, '_')}_${i + 1}`; // Default to GDrive placeholder
+                    topics = linkData.topics || []; // Default to empty topics for GDrive type
+                    displayTitle = linkData.customTitle || `Aula Bônus ${i + 1}`;
+                    
+                    const ytId = parseYouTubeVideoId(url);
+                     // If it's explicitly a YouTube ID or a YouTube placeholder, treat as YouTube
+                    if (ytId && (ytId.length === 11 || ytId.startsWith("ID_YOUTUBE_")) && !url.startsWith("LINK_GOOGLE_DRIVE_")) {
+                        url = ytId;
+                        type = 'youtube';
+                        topics = linkData.topics || genericSampleTopics; // YouTube can have generic topics if specific are missing
+                    } else { // Otherwise, treat as Google Drive
+                        url = gDriveTransformLink(url);
+                        type = 'gdrive';
+                    }
+                } else { // Fallback: No specific linkData object, create GDrive placeholder
+                    displayTitle = `Aula Bônus ${i + 1}`;
+                    url = (typeof linkData === 'string' && linkData) ? gDriveTransformLink(linkData) : `LINK_GOOGLE_DRIVE_AULA_BONUS_MODULO_${title.replace(/\s+/g, '_')}_${i + 1}`;
+                    type = 'gdrive';
+                    topics = [];
+                }
+                return { title: displayTitle, url: url, type: type, topics: topics };
+            });
+
+            const apostilasPlaceholders = Array(contentCounts.apostilas).fill(null).map((_, i) => {
+                const linkData = contentLinks.apostilas && contentLinks.apostilas[i];
+                let url, displayTitle;
+
+                if (linkData && typeof linkData === 'object') {
+                    url = linkData.url || `LINK_GOOGLE_DRIVE_APOSTILA_MODULO_${title.replace(/\s+/g, '_')}_${i + 1}`;
+                    displayTitle = linkData.customTitle || `Apostila ${i + 1}`;
+                } else {
+                    displayTitle = `Apostila ${i + 1}`;
+                     url = (typeof linkData === 'string' && linkData) ? linkData : `LINK_GOOGLE_DRIVE_APOSTILA_MODULO_${title.replace(/\s+/g, '_')}_${i + 1}`;
+                }
+                return { 
+                    title: displayTitle, 
+                    url: gDriveTransformLink(url), 
+                    type: 'gdrive', 
+                    topics: [] 
+                };
+            });
+
+            return { 
+                specialty, id: currentModuleId, shortcode, title, subtitle, iconType, 
+                content: { aulas: aulasPlaceholders, apostilas: apostilasPlaceholders, aulasBonus: aulasBonusPlaceholders },
+                contentCounts: contentCounts 
+            };
+        };
+        
+        // --- Data Definition ---
+        // User should manually populate contentLinks.aulas, .apostilas, .aulasBonus with objects
+        // containing url, topics (if applicable), and customTitle (if desired).
+        // createModule will use these or generate defaults if arrays are empty/sparse.
+        let gradientIconIndex = 0;
+        const newSpecialtiesWithModules = [
+            {
+                name: "Hematologia",
+                icon: gradientClasses[gradientIconIndex++ % 20],
+                modules: [
+                    {
+                        title: "Distúr. das Hemostasia",
+                        shortcode: "DH",
+                        contentCounts: { aulas: 3, apostilas: 1, aulasBonus: 0 },
+                        contentLinks: {
+                            aulas: [
+                                { url:"https://youtu.be/2_hU426QYaU", customTitle: "Aula 01 - Distúrbios das Hemostasia: Caso I"},
+                                { url:"https://youtu.be/heV_3McJ9M0", customTitle: "Aula 02 - Distúrbios das Hemostasia: Caso II"},
+                                { url:"https://youtu.be/p2v-K9j9j44", customTitle: "Aula 03 - Distúrbios das Hemostasia: Caso III"}
+                            ],
+                            apostilas: [
+                                { url: "https://drive.google.com/file/d/1E4pbQTDewfyBw-svl0AwxlRTemKBmsKU/view?usp=drive_link", customTitle: "Distúrbios das Hemostasia e Trombose" }
+                            ],
+                            aulasBonus: []
+                        }
+                    },
+                    {
+                        title: "Anemia",
+                        shortcode: "ANE",
+                        contentCounts: { aulas: 5, apostilas: 1, aulasBonus: 5 },
+                        contentLinks: {
+                            aulas: [
+                                { url:"https://drive.google.com/file/d/1E7cijyvH3y87R8ey3Zt3UoWAeQd0xawE/view?usp=sharing", customTitle: "Aula 01 - Anemia: Parte I - Introdução às Anemias, Anemia Ferropriva e Anemia de Doença Crônica: Caso I"},
+                                { url:"https://drive.google.com/file/d/1E7mEjFhLQebRQuvR3RGhQMabu7vciGkE/view?usp=sharing", customTitle:"Aula 02 - Anemia: Parte I - Anemia Megaloblástica: Caso II"},
+                                { url:"https://drive.google.com/file/d/1E8DMm1qEoicmWGao9ypkIVZ5lR0gGfj4/view?usp=sharing", customTitle:"Aula 03 - Anemia: Parte II - Caso III"},
+                                { url:"https://drive.google.com/file/d/1E7TnMHwsJf1-tdqoAzg3pgCVPfXWa_WT/view?usp=sharing", customTitle:"Aula 04 - Anemia: Parte II - Caso IV"},
+                                { url:"https://drive.google.com/file/d/1E7Lylh6vkkUvrBnUFuxGSFS6exyd18BA/view?usp=sharing", customTitle:"Aula 05 - Anemia: Parte II - Caso V"}
+                            ],
+                            apostilas: [
+                                { url: "https://drive.google.com/file/d/1E6pADKfDms8yYn5qKXj4Us9dsrSMvivF/view?usp=drive_link", customTitle: "Síndromes Anêmicas" }
+                            ],
+                            aulasBonus: [
+                                { url: "https://drive.google.com/file/d/1EAKzn0UHVfyUYDliO8AAVD7A35blFUCa/view?usp=sharing", customTitle: "Aula 01 - Anemia Sideroblástica" },
+                                { url: "https://drive.google.com/file/d/1E8Fscw4_-E27tlR-soxjhpu_t6VRFlRv/view?usp=sharing", customTitle: "Aula 02 - Talassemias" },
+                                { url: "https://drive.google.com/file/d/1E9FFdH6e5_Yzp7UZWpqjhPrhSyMv-8i1/view?usp=sharing", customTitle: "Aula 03 - Policitemia Vera" },
+                                { url: "https://drive.google.com/file/d/1E8InUc8EhlX58EPACE1pWnuVcKdA_IM6/view?usp=sharing", customTitle: "Aula 04 - Trombocitopenia Essencial" },
+                                { url: "https://drive.google.com/file/d/1E9zaDlI9ABJTC-GDZcTZlH0_uPr2wiIb/view?usp=sharing", customTitle: "Aula 05 - Trombofilias" }
+                            ]
+                        }
+                    },
+                    {
+                        title: "Pancitope. e Linfonodo.",
+                        shortcode: "PL",
+                        contentCounts: { aulas: 3, apostilas: 1, aulasBonus: 0 },
+                        contentLinks: {
+                            aulas: [
+                                { url:"https://drive.google.com/file/d/1HUryKBVlSIlGoPypWVZaUYVO8I1bEDyZ/view?usp=sharing", customTitle:"Aula 01 - Linfonodomegalia: Caso I"},
+                                { url:"https://drive.google.com/file/d/1HTNQLcXM4ORmEqnwSeZLStRBGEhptdb8/view?usp=sharing", customTitle:"Aula 02 - Pancitopenia e Outras Desordens Hematológicas: Caso I"},
+                                { url:"https://drive.google.com/file/d/1HTTTjrVOlywtrmUF9CR4g_JUfMJFvN5F/view?usp=sharing", customTitle:"Aula 03 - Leucemias Crônicas: Caso II"}
+                            ],
+                            apostilas: [
+                                { url: "https://drive.google.com/file/d/1HlHbfijw5zqgkLse4oAsahfgc3BXAeJ1/view?usp=drive_link", customTitle: "Síndromes de Pancitopenia e Linfonodomegalia" }
+                            ],
+                            aulasBonus: []
+                        }
+                    }
+                ]
+            }
+        ];
+        
+        const modulesDataRaw = [];
+        newSpecialtiesWithModules.forEach(specData => {
+            specData.modules.forEach(modData => { 
+                modulesDataRaw.push({
+                    specialty: specData.name, 
+                    shortcode: modData.shortcode, 
+                    title: modData.title, 
+                    subtitle: specData.name, 
+                    contentCounts: modData.contentCounts, 
+                    iconType: specData.icon, 
+                    contentLinks: modData.contentLinks 
+                });
+            });
+        });
+
+        const specialtyOrder = newSpecialtiesWithModules.map(s => s.name); 
+        const modulesData = modulesDataRaw.map(mod => createModule( mod.specialty, mod.shortcode, mod.title, mod.subtitle, mod.contentCounts, mod.iconType, mod.contentLinks ));
+        
+        // --- UI Rendering and Event Handling (rest of the script remains the same) ---
+        function clearTopicsMenu(message = 'Nenhum tópico disponível.') {
+            topicsListUl.innerHTML = '';
+            noTopicsMessage.textContent = message;
+            noTopicsMessage.classList.remove('hidden');
+            topicsMenuDiv.classList.add('hidden');      
+            toggleTopicsButton.classList.add('hidden'); 
+            topicsIconOpen.classList.remove('hidden');
+            topicsIconClose.classList.add('hidden');
+        }
+
+        function populateTopicsMenu(topics, isYouTube = false, playerInstance = null) { 
+            topicsListUl.innerHTML = '';
+            const currentPlayerInstance = playerInstance; 
+            console.log("Populating topics. isYouTube:", isYouTube, "Player instance for click:", currentPlayerInstance);
+
+            if (topics && topics.length > 0) {
+                topics.forEach(topic => {
+                    const li = document.createElement('li');
+                    li.className = 'topics-item'; 
+                    
+                    const topicTitleContainer = document.createElement('div');
+                    topicTitleContainer.className = 'topic-title-container';
+
+                    const playIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    playIconSvg.setAttribute('class', 'play-icon');
+                    playIconSvg.setAttribute('viewBox', '0 0 20 20');
+                    playIconSvg.setAttribute('fill', 'currentColor'); 
+                    playIconSvg.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />`;
+                    
+                    const titleSpan = document.createElement('span');
+                    titleSpan.className = 'topic-title';
+                    titleSpan.textContent = topic.title;
+
+                    topicTitleContainer.appendChild(playIconSvg);
+                    topicTitleContainer.appendChild(titleSpan);
+                    
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'topic-time';
+                    timeSpan.textContent = topic.time;
+
+                    li.appendChild(topicTitleContainer);
+                    li.appendChild(timeSpan);
+
+                    if (isYouTube && currentPlayerInstance && typeof currentPlayerInstance.seekTo === 'function') { 
+                        console.log("Making topic clickable:", topic.title, "with player:", currentPlayerInstance);
+                        li.classList.add('clickable');
+                        li.addEventListener('click', () => {
+                            console.log("Topic clicked:", topic.title, "Attempting to use player:", currentPlayerInstance);
+                            const seconds = parseTimeToSeconds(topic.time);
+                            if (currentPlayerInstance && typeof currentPlayerInstance.seekTo === 'function' && typeof currentPlayerInstance.playVideo === 'function') {
+                                currentPlayerInstance.seekTo(seconds, true); 
+                                currentPlayerInstance.playVideo(); 
+                            } else {
+                                console.warn("Player instance was not valid or ready at time of click for topic:", topic.title);
+                            }
+                        });
+                    } else if (isYouTube) {
+                         console.log("Topic NOT clickable (YouTube video, but player invalid/not ready at this stage):", topic.title, "Player:", currentPlayerInstance);
+                    }
+                    topicsListUl.appendChild(li);
+                });
+                noTopicsMessage.classList.add('hidden');
+                toggleTopicsButton.classList.remove('hidden'); 
+            } else {
+                clearTopicsMenu(isYouTube ? 'Nenhum tópico definido para esta aula.' : 'Nenhum tópico disponível para este material.');
+            }
+        }
+
+        function displayModuleDetails(module) {
+            materialsHeader.textContent = `MATERIAIS: ${module.title}`; 
+            detailsContentList.innerHTML = ''; 
+            
+            destroyYouTubePlayer(); 
+            playerDiv.classList.add('hidden');
+            gDriveViewer.src = 'about:blank'; 
+            gDriveViewer.classList.add('hidden');
+
+            topicsMenuDiv.classList.add('hidden'); 
+            toggleTopicsButton.classList.add('hidden');
+            topicsIconOpen.classList.remove('hidden'); 
+            topicsIconClose.classList.add('hidden');   
+
+            const initialMessage = detailsContentList.querySelector('.initial-details-message');
+            if(initialMessage) initialMessage.remove(); 
+
+            if (module.contentCounts.aulas === 0 && module.contentCounts.apostilas === 0 && module.contentCounts.aulasBonus === 0) {
+                 detailsContentList.innerHTML = '<p class="text-gray-400">Nenhum material cadastrado para este módulo.</p>';
+                 return;
+            }
+
+            let hasContentToList = false; 
+            let firstPlayableItemDiv = null; 
+            
+            subItemOrder.forEach(contentTypeKey => { 
+                const items = module.content[contentTypeKey]; 
+                const countForType = module.contentCounts[contentTypeKey];
+
+                if (countForType > 0 && items && items.length > 0) { 
+                    hasContentToList = true;
+                    const sectionTitle = document.createElement('h4');
+                    sectionTitle.className = 'text-xs font-semibold text-gray-400 mt-3 mb-1 uppercase tracking-wider';
+                    const displayContentType = contentTypeKey === 'aulasBonus' ? 'Aulas Bônus' : contentTypeKey.charAt(0).toUpperCase() + contentTypeKey.slice(1);
+                    sectionTitle.textContent = displayContentType;
+                    detailsContentList.appendChild(sectionTitle);
+
+                    items.forEach(item_data => { 
+                        const itemNode = contentItemTemplate.content.cloneNode(true);
+                        const itemDiv = itemNode.querySelector('.content-item');
+                        const titleSpan = itemNode.querySelector('.content-title');
+                        titleSpan.textContent = item_data.title; 
+
+                        itemDiv.setAttribute('data-url', item_data.url || '#'); 
+                        itemDiv.setAttribute('data-type', item_data.type || 'gdrive'); 
+                        itemDiv.dataset.topics = JSON.stringify(item_data.topics || []); 
+
+                        const iconSvgContainer = document.createElement('span');
+                        if (contentIcons[contentTypeKey.toLowerCase()]) {
+                            iconSvgContainer.innerHTML = contentIcons[contentTypeKey.toLowerCase()];
+                            titleSpan.parentNode.insertBefore(iconSvgContainer.firstChild, titleSpan);
+                        }
+                        
+                        if (!firstPlayableItemDiv && item_data.url && item_data.url !== '#' && !item_data.url.startsWith("ID_YOUTUBE_") && !item_data.url.startsWith("LINK_GOOGLE_DRIVE_") ) { 
+                            firstPlayableItemDiv = itemDiv;
+                        }
+
+                        itemDiv.addEventListener('click', () => {
+                            const url = itemDiv.getAttribute('data-url');
+                            const type = itemDiv.getAttribute('data-type');
+                            const storedTopics = JSON.parse(itemDiv.dataset.topics);
+
+                            if(activeContentItem) activeContentItem.classList.remove('active-content');
+                            itemDiv.classList.add('active-content');
+                            activeContentItem = itemDiv;
+
+                            topicsMenuDiv.classList.add('hidden'); 
+                            topicsIconOpen.classList.remove('hidden'); 
+                            topicsIconClose.classList.add('hidden');   
+
+                            if (url && url !== '#') {
+                                if (url.startsWith("ID_YOUTUBE_") || url.startsWith("LINK_GOOGLE_DRIVE_")) { 
+                                    destroyYouTubePlayer();
+                                    playerDiv.classList.add('hidden');
+                                    gDriveViewer.classList.remove('hidden');
+                                    gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Substitua o placeholder '${url}' pela URL real do conteúdo.</div>`;
+                                    if (storedTopics && storedTopics.length > 0) {
+                                       populateTopicsMenu(storedTopics, type === 'youtube', null); 
+                                    } else {
+                                       clearTopicsMenu('URL do conteúdo não definida.');
+                                    }
+                                } else if (type === 'youtube') { 
+                                    loadYouTubeVideo(url, storedTopics); 
+                                } else if (type === 'gdrive') { 
+                                    destroyYouTubePlayer(); 
+                                    playerDiv.classList.add('hidden');
+                                    gDriveViewer.src = url; 
+                                    gDriveViewer.classList.remove('hidden');
+                                    if (storedTopics && storedTopics.length > 0) { 
+                                        populateTopicsMenu(storedTopics, false, null); 
+                                    } else {
+                                        clearTopicsMenu('Tópicos não aplicáveis ou não definidos para este material.');
+                                    }
+                                }
+                            } else { 
+                                destroyYouTubePlayer();
+                                playerDiv.classList.add('hidden');
+                                gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Link não disponível ou inválido.</div>`;
+                                gDriveViewer.classList.remove('hidden');
+                                clearTopicsMenu('Link não disponível.');
+                            }
+                        });
+                        detailsContentList.appendChild(itemNode);
+                    });
+                }
+            });
+
+            if (!hasContentToList) { 
+                 detailsContentList.innerHTML = '<p class="text-gray-400">Nenhum material encontrado para este módulo.</p>';
+            }
+            
+            if (firstPlayableItemDiv) {
+                setTimeout(() => { firstPlayableItemDiv.click(); }, 0); 
+            } else if (hasContentToList) { 
+                destroyYouTubePlayer();
+                playerDiv.classList.add('hidden');
+                gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Selecione um material da lista. Nenhum item com link real para autoplay.</div>`;
+                gDriveViewer.classList.remove('hidden');
+                clearTopicsMenu('Selecione um material.'); 
+            } else { 
+                destroyYouTubePlayer();
+                playerDiv.classList.add('hidden');
+                gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Nenhum conteúdo para este módulo.</div>`;
+                gDriveViewer.classList.remove('hidden');
+                clearTopicsMenu('Nenhum conteúdo.'); 
+            }
+        }
+        
+        toggleTopicsButton.addEventListener('click', () => {
+            topicsMenuDiv.classList.toggle('hidden');
+            topicsIconOpen.classList.toggle('hidden');
+            topicsIconClose.classList.toggle('hidden');
+        });
+
+        function renderModules(modulesToRender) { 
+            modulesListContainer.innerHTML = ''; 
+            let isFirstModuleOfList = true; 
+            let firstEverClickableModuleCard = null; 
+
+            specialtyOrder.forEach(specialtyName => {
+                const modulesInSpecialty = modulesToRender.filter(m => m.specialty === specialtyName);
+                
+                if (modulesInSpecialty.length > 0 || (searchInput.value && specialtyOrder.includes(specialtyName))) {
+                    const specialtyHeaderDiv = document.createElement('div');
+                    specialtyHeaderDiv.className = 'specialty-header pt-3';
+                    specialtyHeaderDiv.innerHTML = `<span>${specialtyName}</span>`;
+                    modulesListContainer.appendChild(specialtyHeaderDiv);
+                }
+
+                if (modulesInSpecialty.length > 0) {
+                    modulesInSpecialty.forEach(module => {
+                        const cardNode = moduleListItemTemplate.content.cloneNode(true);
+                        const cardDiv = cardNode.querySelector('.module-list-item');
+                        cardDiv.dataset.moduleId = module.id;
+
+                        const displayTitle = module.title; 
+                        cardNode.querySelector('.module-title').textContent = displayTitle;
+
+                        const iconPlaceholder = cardNode.querySelector('.module-icon-box');
+                        iconPlaceholder.innerHTML = `<span class="text-sm">${module.shortcode || 'M'}</span>`; 
+                        iconPlaceholder.className = 'module-icon-box flex-shrink-0'; 
+                        if (module.iconType && gradientClasses.includes(module.iconType)) { 
+                            iconPlaceholder.classList.add(module.iconType);
+                        } else { 
+                            iconPlaceholder.classList.add('gradient-gray'); 
+                        }
+                        
+                        cardNode.querySelector('.aulas-count').textContent = module.contentCounts.aulas;
+                        cardNode.querySelector('.apostilas-count').textContent = module.contentCounts.apostilas;
+                        cardNode.querySelector('.aulasBonus-count').textContent = module.contentCounts.aulasBonus;
+
+                        cardDiv.addEventListener('click', () => {
+                            if (activeModuleCard) {
+                                activeModuleCard.classList.remove('active');
+                            }
+                            cardDiv.classList.add('active');
+                            activeModuleCard = cardDiv;
+                            if(activeContentItem) activeContentItem.classList.remove('active-content'); 
+                            activeContentItem = null; 
+                            displayModuleDetails(module); 
+                        });
+
+                        if (isFirstModuleOfList && modulesToRender.length > 0) { 
+                            firstEverClickableModuleCard = cardDiv;
+                            isFirstModuleOfList = false;
+                        }
+                        modulesListContainer.appendChild(cardNode);
+                    });
+                } else if (searchInput.value && specialtyOrder.includes(specialtyName)){ 
+                    const noModulesMsg = document.createElement('p');
+                    noModulesMsg.className = 'text-xs text-gray-500 text-center pb-2';
+                    noModulesMsg.textContent = 'Nenhum módulo encontrado para esta especialidade com o filtro atual.';
+                    modulesListContainer.appendChild(noModulesMsg);
+                }
+            });
+            
+            if (firstEverClickableModuleCard) {
+                firstEverClickableModuleCard.click(); 
+            } else if (modulesToRender.length === 0 && modulesData.length > 0) { 
+                materialsHeader.textContent = 'Nenhum módulo encontrado';
+                detailsContentList.innerHTML = '<p class="text-gray-400">Tente um termo de pesquisa diferente ou limpe a busca.</p>';
+                destroyYouTubePlayer(); playerDiv.classList.add('hidden'); 
+                gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Nenhum resultado para a busca.</div>`;
+                gDriveViewer.classList.remove('hidden');
+                if (activeModuleCard) activeModuleCard.classList.remove('active'); activeModuleCard = null;
+                if(activeContentItem) activeContentItem.classList.remove('active-content'); activeContentItem = null;
+                clearTopicsMenu('Nenhum resultado para a busca.');
+
+            } else if (modulesData.length === 0) { 
+                materialsHeader.textContent = 'Nenhum módulo disponível';
+                detailsContentList.innerHTML = '<p class="text-gray-400">Nenhum módulo foi configurado na plataforma.</p>';
+                destroyYouTubePlayer(); playerDiv.classList.add('hidden'); 
+                gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Plataforma vazia.</div>`;
+                gDriveViewer.classList.remove('hidden');
+                clearTopicsMenu('Plataforma vazia.');
+            }
+        }
+
+        // --- Initial Page Load ---
+        renderModules(modulesData);
+
+        if (modulesData.length === 0 && modulesListContainer.children.length === 0 ) { 
+            materialsHeader.textContent = 'Nenhum módulo disponível';
+            detailsContentList.innerHTML = '<p class="text-gray-400">Adicione módulos para começar.</p>';
+            destroyYouTubePlayer(); playerDiv.classList.add('hidden'); 
+            gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Nenhum módulo cadastrado.</div>`;
+            gDriveViewer.classList.remove('hidden');
+            clearTopicsMenu('Nenhum módulo cadastrado.');
+        }
+
+        // --- Event Listeners ---
+        searchInput.addEventListener('input', (e) => { 
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const filteredModules = modulesData.filter(module =>
+                module.title.toLowerCase().includes(searchTerm) ||
+                (module.subtitle && module.subtitle.toLowerCase().includes(searchTerm)) || 
+                (module.shortcode && module.shortcode.toLowerCase().includes(searchTerm)) ||
+                (module.specialty && module.specialty.toLowerCase().includes(searchTerm)) 
+            );
+            renderModules(filteredModules); 
+
+            if (filteredModules.length === 0) {
+                materialsHeader.textContent = 'Nenhum módulo encontrado';
+                detailsContentList.innerHTML = '<p class="text-gray-400">Nenhum módulo corresponde à sua pesquisa.</p>';
+                destroyYouTubePlayer(); playerDiv.classList.add('hidden'); 
+                gDriveViewer.srcdoc = `<div style='color: #a0aec0; display:flex; justify-content:center; align-items:center; height:100%; font-family: Inter, sans-serif;'>Nenhum resultado para a busca.</div>`;
+                gDriveViewer.classList.remove('hidden');
+                if (activeModuleCard) { activeModuleCard.classList.remove('active'); activeModuleCard = null; }
+                if(activeContentItem) { activeContentItem.classList.remove('active-content'); activeContentItem = null; }
+                clearTopicsMenu('Nenhum resultado para a busca.');
+            }
+        });
+    </script>
+</body>
+</html>
