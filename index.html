@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            transition: background-color 0.7s ease-in-out;
+        }
+
+        /* Estilos para esconder a barra de rolagem */
+        .custom-scrollbar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+        .custom-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        .scroll-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 2.5rem;
+            padding-bottom: 2.5rem;
+        }
+
+        .scroll-container {
+            overflow-x: auto;
+            cursor: grab;
+            padding-top: 1.25rem; 
+            padding-bottom: 3rem; 
+        }
+
+        .card {
+            flex: 0 0 auto;
+            width: 280px;
+            height: 420px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s ease-out, box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .card-content-wrapper {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.25);
+            transition: background-color 0.4s ease-out;
+        }
+
+        .card.is-center {
+            transform: scale(1.08);
+            opacity: 1;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 20px -5px rgba(0,0,0,0.2);
+            z-index: 5;
+        }
+        .card.is-center .card-content-wrapper {
+             background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .card:not(.is-center) {
+            transform: scale(0.88);
+            opacity: 0.55;
+        }
+
+        .filter-btn {
+            transition: all 0.2s ease-in-out;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .filter-btn.active {
+            background-color: #374151;
+            color: white;
+        }
+        .filter-btn:not(.active) {
+            background-color: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .card-bottom-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.5;
+            stroke: rgba(255,255,255,0.9);
+        }
+
+        .card-tag {
+            background-color: rgba(0,0,0,0.45);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            align-self: flex-start;
+        }
+
+        .card-footer-text {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.95);
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .btn-entrar { /* Esta classe agora será aplicada a uma tag <a> */
+            display: inline-block; /* Garante que padding e text-align funcionem bem */
+            text-decoration: none; /* Remove sublinhado padrão de links */
+            background-color: white;
+            color: #374151;
+            width: 100%;
+            padding: 0.75rem 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: center;
+            transition: background-color 0.2s;
+        }
+        .btn-entrar:hover {
+            background-color: #f3f4f6;
+        }
+
+        .scroll-nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            cursor: pointer;
+            z-index: 10;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .scroll-nav-button:hover {
+            transform: translateY(-50%) scale(1.1);
+        }
+        .scroll-nav-button:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+        .scroll-nav-button.left {
+            left: 1rem;
+        }
+        .scroll-nav-button.right {
+            right: 1rem;
+        }
+        .scroll-nav-button svg {
+            width: 20px;
+            height: 20px;
+            stroke: #374151;
+            stroke-width: 2.5;
+        }
+
+        .scroll-fade-overlay {
+            position: absolute;
+            z-index: 6;
+            pointer-events: none;
+            transition: background 0.7s ease-in-out;
+        }
+        .left-fade {
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 80px;
+        }
+        .right-fade {
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 80px;
+        }
+        .bottom-fade { 
+            bottom: 0; 
+            left: 0;
+            right: 0;
+            height: 60px; 
+        }
+    </style>
+</head>
+<body class="px-0 sm:px-0">
+    <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 sm:mt-10">
+        <div class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8 sm:mb-10">
+            <button class="filter-btn active" data-filter="all">Todos os Cursos</button>
+            <button class="filter-btn" data-filter="r1">R1</button>
+            <button class="filter-btn" data-filter="rplus">R+</button>
+            <button class="filter-btn" data-filter="revalida">REVALIDA</button>
+            <button class="filter-btn" data-filter="pratica">PRÁTICA</button>
+            <button class="filter-btn" data-filter="aperfeicoamento">APERFEIÇOAMENTO</button>
+            <button class="filter-btn" data-filter="ted">TED</button>
+        </div>
+    </div>
+
+    <div class="w-full mt-2 sm:mt-4">
+        <div class="scroll-wrapper">
+            <div id="leftFadeOverlay" class="scroll-fade-overlay left-fade"></div>
+            <button id="scrollLeftButton" class="scroll-nav-button left">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+            </button>
+            <div id="scrollContainer" class="scroll-container custom-scrollbar flex gap-4 sm:gap-5">
+                </div>
+            <button id="scrollRightButton" class="scroll-nav-button right">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+            </button>
+            <div id="rightFadeOverlay" class="scroll-fade-overlay right-fade"></div>
+            <div id="bottomFadeOverlay" class="scroll-fade-overlay bottom-fade"></div> </div>
+    </div>
+
+    <script>
+        const scrollContainer = document.getElementById('scrollContainer');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const scrollLeftButton = document.getElementById('scrollLeftButton');
+        const scrollRightButton = document.getElementById('scrollRightButton');
+        const leftFadeOverlay = document.getElementById('leftFadeOverlay');
+        const rightFadeOverlay = document.getElementById('rightFadeOverlay');
+        const bottomFadeOverlay = document.getElementById('bottomFadeOverlay');
+        const cardWidth = 280; 
+        let originalCoursesCount = 0; 
+        let gapValue = 20; 
+
+        const coursesData = [
+            // R1 Cursos
+            { id: 17, category: "r1", tag: "MED", titleMain: "Medcurso", titleSub: "Completo", footerText: "Medcurso", courseUrl: "medcurso.html", backgroundImageUrl: "Imagens/medcurso.png", pageThemeColor: "#FFE4E1" },
+            { id: 15, category: "r1", tag: "MED", titleMain: "MED", titleSub: "Essencial", footerText: "MED", courseUrl: "med.html", backgroundImageUrl: "Imagens/MED.jpg", pageThemeColor: "#FADADD" },
+            ];
+
+        function createCardElement(course) {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = `card`;
+            cardDiv.dataset.courseId = course.id;
+            if (course.backgroundImageUrl) {
+                cardDiv.style.backgroundImage = `url('${course.backgroundImageUrl}')`;
+            } else {
+                // Fallback if no image URL, though all data has it
+                cardDiv.classList.add(course.gradient || 'bg-gray-200');
+            }
+            cardDiv.onerror = function() {
+                this.style.backgroundImage = `url('https://placehold.co/280x420/CCCCCC/FFF?text=Erro+Imagem')`;
+            };
+
+            const url = course.courseUrl || '#'; // Use courseUrl, fallback to '#'
+
+            cardDiv.innerHTML = `
+                <div class="card-content-wrapper">
+                    <div class="card-tag">${course.tag}</div>
+                    <div class="flex-grow flex flex-col items-center justify-center text-center">
+                        </div>
+                    <div class="mt-auto">
+                        <div class="card-footer-text justify-center mb-3">
+                            <div class="card-bottom-icon mr-1.5">
+                                ${createIconSVG("footer-plus-icon")}
+                            </div>
+                            <span>${course.footerText}</span>
+                        </div>
+                        <div class="flex justify-center">
+                            <a href="${url}" class="btn-entrar" target="_blank" rel="noopener noreferrer">Entrar</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return cardDiv;
+        }
+
+        function createIconSVG(type) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            let iconHTML = '';
+            if (type === "footer-plus-icon") {
+                 iconHTML = `
+                    <svg xmlns="${svgNS}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
+                    </svg>`;
+            }
+            return iconHTML;
+        }
+
+        function setScrollContainerPadding() {
+            if (!scrollContainer) return;
+            const containerWidth = scrollContainer.clientWidth;
+            let dynamicPadding = (containerWidth - cardWidth) / 2;
+            dynamicPadding = Math.max(0, dynamicPadding);
+
+            scrollContainer.style.paddingLeft = `${dynamicPadding}px`;
+            scrollContainer.style.paddingRight = `${dynamicPadding}px`;
+        }
+
+        function updatePageBackgroundAndFades(color) {
+            document.body.style.backgroundColor = color;
+            if (leftFadeOverlay) {
+                leftFadeOverlay.style.background = `linear-gradient(to right, ${color} 20%, transparent)`;
+            }
+            if (rightFadeOverlay) {
+                rightFadeOverlay.style.background = `linear-gradient(to left, ${color} 20%, transparent)`;
+            }
+            if (bottomFadeOverlay) {
+                bottomFadeOverlay.style.background = `linear-gradient(to top, ${color} 30%, transparent)`;
+            }
+        }
+
+        function updateScrollButtonStates() {
+            if (!scrollContainer) return;
+            const scrollableWidth = scrollContainer.scrollWidth;
+            const clientVisibleWidth = scrollContainer.clientWidth;
+            const isScrollable = scrollableWidth > clientVisibleWidth + 1;
+
+            const displayStyle = (originalCoursesCount > 0 && isScrollable) ? 'flex' : 'none';
+            scrollLeftButton.style.display = displayStyle;
+            scrollRightButton.style.display = displayStyle;
+
+            if (displayStyle === 'none') return;
+
+            const scrollLeft = scrollContainer.scrollLeft;
+            const tolerance = 1.5;
+
+            scrollLeftButton.style.opacity = (scrollLeft <= tolerance) ? '0.5' : '1';
+            scrollLeftButton.style.pointerEvents = (scrollLeft <= tolerance) ? 'none' : 'auto';
+
+            scrollRightButton.style.opacity = (scrollLeft + clientVisibleWidth >= scrollableWidth - tolerance) ? '0.5' : '1';
+            scrollRightButton.style.pointerEvents = (scrollLeft + clientVisibleWidth >= scrollableWidth - tolerance) ? 'none' : 'auto';
+        }
+
+        function renderCards() {
+            scrollContainer.innerHTML = '';
+            const activeFilterButton = document.querySelector('.filter-btn.active');
+            const activeFilter = activeFilterButton ? activeFilterButton.dataset.filter : 'all';
+
+            let coursesToRender = activeFilter === 'all'
+                ? coursesData
+                : coursesData.filter(course => course.category === activeFilter);
+
+            originalCoursesCount = coursesToRender.length;
+
+            if (originalCoursesCount === 0) {
+                scrollContainer.innerHTML = '<p class="text-center text-gray-500 py-10 w-full">Nenhum curso encontrado para este filtro.</p>';
+                updatePageBackgroundAndFades('#f0f4f8');
+                setScrollContainerPadding();
+                updateCardStyles();
+                updateScrollButtonStates();
+                return;
+            }
+
+            gapValue = parseInt(getComputedStyle(scrollContainer).gap || '20px');
+            coursesToRender.forEach(course => scrollContainer.appendChild(createCardElement(course)));
+            setScrollContainerPadding();
+        }
+
+        function updateCardStyles() {
+            const cards = scrollContainer.querySelectorAll('.card');
+            if (!cards.length) {
+                 updatePageBackgroundAndFades('#f0f4f8');
+                return;
+            }
+
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const containerCenter = containerRect.left + containerRect.width / 2;
+            let minDistance = Infinity;
+            let centerCardElement = null;
+
+            cards.forEach(cardEl => {
+                const cardRect = cardEl.getBoundingClientRect();
+                const cardCenter = cardRect.left + cardRect.width / 2;
+                const distance = Math.abs(containerCenter - cardCenter);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    centerCardElement = cardEl;
+                }
+                cardEl.classList.remove('is-center');
+            });
+
+            if (centerCardElement) {
+                centerCardElement.classList.add('is-center');
+                const courseId = parseInt(centerCardElement.dataset.courseId);
+                const centeredCourse = coursesData.find(course => course.id === courseId);
+                if (centeredCourse && centeredCourse.pageThemeColor) {
+                    updatePageBackgroundAndFades(centeredCourse.pageThemeColor);
+                }
+            } else {
+                updatePageBackgroundAndFades('#f0f4f8');
+            }
+        }
+
+        function scrollToCardAtIndex(targetIndex) {
+            const allCardsElements = scrollContainer.querySelectorAll('.card');
+            if (originalCoursesCount === 0 || allCardsElements.length === 0) {
+                updateCardStyles();
+                updateScrollButtonStates();
+                return;
+            }
+            const cardIndexToShow = Math.max(0, Math.min(targetIndex, originalCoursesCount - 1));
+            const cardElementToShow = allCardsElements[cardIndexToShow];
+
+            if (cardElementToShow) {
+                const targetScrollLeft = (cardElementToShow.offsetLeft + (cardElementToShow.clientWidth / 2)) - (scrollContainer.clientWidth / 2);
+                scrollContainer.scrollTo({ left: targetScrollLeft, behavior: 'auto' });
+                setTimeout(() => {
+                    updateCardStyles();
+                    updateScrollButtonStates();
+                }, 50);
+            } else {
+                updateCardStyles();
+                updateScrollButtonStates();
+            }
+        }
+
+        scrollContainer.addEventListener('scroll', () => {
+            if (originalCoursesCount === 0) return;
+            updateCardStyles();
+            updateScrollButtonStates();
+        });
+
+        window.addEventListener('resize', () => {
+            setScrollContainerPadding();
+            const middleIndex = Math.floor(originalCoursesCount / 2);
+            scrollToCardAtIndex(middleIndex);
+        });
+
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                renderCards();
+                const filterType = button.dataset.filter;
+                let targetIndex;
+                if (filterType === 'r1' || filterType === 'rplus' || filterType === 'aperfeicoamento') {
+                    targetIndex = 1; // 2nd item
+                } else {
+                    targetIndex = Math.floor(originalCoursesCount / 2); // Middle item
+                }
+                scrollToCardAtIndex(targetIndex);
+            });
+        });
+
+        let isDown = false;
+        let startX;
+        let currentScrollLeftForDrag;
+
+        scrollContainer.addEventListener('mousedown', (e) => {
+            isDown = true;
+            scrollContainer.style.cursor = 'grabbing';
+            startX = e.pageX - scrollContainer.offsetLeft;
+            currentScrollLeftForDrag = scrollContainer.scrollLeft;
+        });
+        scrollContainer.addEventListener('mouseleave', () => {
+            if (!isDown) return;
+            isDown = false;
+            scrollContainer.style.cursor = 'grab';
+            updateScrollButtonStates();
+        });
+        scrollContainer.addEventListener('mouseup', () => {
+            if (!isDown) return;
+            isDown = false;
+            scrollContainer.style.cursor = 'grab';
+            updateScrollButtonStates();
+        });
+        scrollContainer.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - scrollContainer.offsetLeft;
+            const walk = (x - startX) * 1.8;
+            scrollContainer.scrollLeft = currentScrollLeftForDrag - walk;
+        });
+
+        scrollLeftButton.addEventListener('click', () => {
+            scrollContainer.scrollBy({ left: -(cardWidth + gapValue), behavior: 'smooth' });
+        });
+
+        scrollRightButton.addEventListener('click', () => {
+            scrollContainer.scrollBy({ left: (cardWidth + gapValue), behavior: 'smooth' });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCards();
+            const initialMiddleIndex = Math.floor(originalCoursesCount / 2);
+            scrollToCardAtIndex(initialMiddleIndex);
+        });
+    </script>
+
+</body>
+</html>
